@@ -38,6 +38,28 @@ let rows = db.query("SELECT * FROM users WHERE id = 1")?;
 - [Planned repository structure](docs/repository-structure.md)
 - [References](docs/references.md)
 
-This repository starts with the learning plan. The Rust crates and modules will be added as the milestones are implemented.
+## Current implementation
 
-Start with the [Milestone 1 first task](docs/roadmap/01-storage-fundamentals.md#first-task).
+Milestone 1 implements a versioned binary header and a pager for creating,
+allocating, reading, writing, syncing, and reopening 4096-byte pages. SQL and the
+`Database` API shown above are future milestones.
+
+With stable Rust installed, run:
+
+```sh
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all -- --check
+```
+
+Create a database at a **new file path**, write a page, and read it back:
+
+```sh
+cargo run -p tinydb --example pager -- /tmp/tinydb-example.db
+hexdump -C /tmp/tinydb-example.db | head
+```
+
+Read the [storage format and pager design](docs/storage-format.md), then explore
+the [Milestone 1 implementation](crates/tinydb/src/storage/pager.rs) and
+[tests](crates/tinydb/tests/pager.rs). The pager requires a single owner per file;
+transactions and crash recovery are planned for Milestone 6.

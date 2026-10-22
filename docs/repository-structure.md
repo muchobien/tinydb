@@ -36,7 +36,11 @@ tinydb/
 └── docs/
 ```
 
-This is the intended Rust project layout. Add crates and modules when their milestone needs them; the initial repository contains the documentation only.
+This is the intended Rust project layout. Add crates and modules when their
+milestone needs them. Milestone 1 adds the workspace and `crates/tinydb`, with
+`storage/{header,page,pager}.rs`, integration tests in `crates/tinydb/tests`, and
+a runnable example in `crates/tinydb/examples`. The CLI and remaining modules
+are planned.
 
 The learning documentation is organized as:
 
@@ -44,6 +48,7 @@ The learning documentation is organized as:
 docs/
 ├── README.md
 ├── architecture.md
+├── storage-format.md
 ├── design-decisions.md
 ├── learning-process.md
 ├── references.md

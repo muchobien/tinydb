@@ -1,0 +1,3 @@
+[workspace]
+members = ["crates/tinydb"]
+resolver = "3"
