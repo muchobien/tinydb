@@ -17,7 +17,9 @@ bytes rather than serializing a Rust struct's memory.
 | 16 | 8 | Data-page count (`u64`) | Initially 0 |
 | 24 | 4072 | Reserved | All zero |
 
-Data page `id` begins at byte `id * 4096`. The file length must equal
+Data page `id` begins at byte `id * 4096`. The
+[record-storage layer](record-storage.md) interprets its data pages as slotted
+pages; the pager itself treats page payloads as opaque bytes. The file length must equal
 `(data_page_count + 1) * 4096`. Check arithmetic for overflow before seeking or
 accepting an on-disk count. Reject unknown versions, unexpected page sizes,
 nonzero reserved bytes, truncated files, and extra bytes. Version 1 has no

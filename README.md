@@ -41,8 +41,10 @@ let rows = db.query("SELECT * FROM users WHERE id = 1")?;
 ## Current implementation
 
 Milestone 1 implements a versioned binary header and a pager for creating,
-allocating, reading, writing, syncing, and reopening 4096-byte pages. SQL and the
-`Database` API shown above are future milestones.
+allocating, reading, writing, syncing, and reopening 4096-byte pages. Milestone 2
+adds typed record encoding, slotted pages, and a record store with stable IDs,
+updates, deletion, and space reclamation. SQL and the `Database` API shown above
+are future milestones.
 
 With stable Rust installed, run:
 
@@ -63,3 +65,13 @@ Read the [storage format and pager design](docs/storage-format.md), then explore
 the [Milestone 1 implementation](crates/tinydb/src/storage/pager.rs) and
 [tests](crates/tinydb/tests/pager.rs). The pager requires a single owner per file;
 transactions and crash recovery are planned for Milestone 6.
+
+To try structured records, use a separate **new file path**:
+
+```sh
+cargo run -p tinydb --example records -- /tmp/tinydb-records.db
+```
+
+The example inserts, updates, and deletes records, then reopens the file. Read
+the [record storage design](docs/record-storage.md) for the binary format,
+stable-ID behavior, and single-page record/update limits.

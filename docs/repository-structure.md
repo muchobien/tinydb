@@ -11,9 +11,12 @@ tinydb/
 │   │   └── src/
 │   │       ├── lib.rs
 │   │       ├── storage/
+│   │       │   ├── header.rs
 │   │       │   ├── pager.rs
 │   │       │   ├── page.rs
-│   │       │   └── record.rs
+│   │       │   ├── record.rs
+│   │       │   ├── record_store.rs
+│   │       │   └── slotted_page.rs
 │   │       ├── index/
 │   │       │   └── btree.rs
 │   │       ├── sql/
@@ -39,8 +42,9 @@ tinydb/
 This is the intended Rust project layout. Add crates and modules when their
 milestone needs them. Milestone 1 adds the workspace and `crates/tinydb`, with
 `storage/{header,page,pager}.rs`, integration tests in `crates/tinydb/tests`, and
-a runnable example in `crates/tinydb/examples`. The CLI and remaining modules
-are planned.
+runnable examples in `crates/tinydb/examples`. Milestone 2 adds `record.rs`,
+`slotted_page.rs`, and `record_store.rs`, with codec, page, and record-store
+integration tests. The CLI and remaining modules are planned.
 
 The learning documentation is organized as:
 
@@ -49,6 +53,7 @@ docs/
 ├── README.md
 ├── architecture.md
 ├── storage-format.md
+├── record-storage.md
 ├── design-decisions.md
 ├── learning-process.md
 ├── references.md
