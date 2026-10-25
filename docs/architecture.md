@@ -44,10 +44,30 @@ unchanged. Deleted slots remain tombstones and are never reused.
 `RecordId { page_id, slot_id }`. Insertion scans pages for capacity before
 allocating. Lookup reads a single page. Updates stay on the original page and
 fail without modification when growth cannot fit. Opening validates every page
-and live record. This first heap has no catalog, index, or overflow pages.
+and live record. This first heap has no catalog or overflow pages; indexes own
+separate files.
 
 See [Record storage](record-storage.md) for layouts, invariants, tradeoffs, and
 failure behavior. The [integration tests](../crates/tinydb/tests/record_store.rs)
 exercise thousands of records, compaction, stable IDs, and reopening.
+
+## Implemented: B+ tree indexes
+
+`index::BPlusTree` maps unique `i64` keys to physical `RecordId` values. It owns
+a pager file with leaf and internal pages, keeping its root at page 1. Internal
+nodes route point lookups with binary search; linked leaves support ordered
+range scans. Inserts split overflowing nodes and grow the root. Deletes borrow
+from siblings or merge nodes, propagate changed minimum keys up the search
+path, and contract the root when needed. Retired pages stay allocated.
+
+Opening validates the entire tree, including separator values, occupancy,
+equal leaf depths, forward links, and unreachable pages. Subsequent point
+operations follow a root-to-leaf path. Index values refer to a separate heap;
+callers coordinate heap and index mutations explicitly. A shared catalog and
+atomic heap/index transactions remain future work.
+
+See [B+ tree indexes](b-plus-tree.md) for byte layouts and failure semantics,
+the [implementation](../crates/tinydb/src/index/btree.rs), and
+[integration tests](../crates/tinydb/tests/btree.rs).
 
 [Documentation index](README.md)

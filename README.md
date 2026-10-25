@@ -43,8 +43,9 @@ let rows = db.query("SELECT * FROM users WHERE id = 1")?;
 Milestone 1 implements a versioned binary header and a pager for creating,
 allocating, reading, writing, syncing, and reopening 4096-byte pages. Milestone 2
 adds typed record encoding, slotted pages, and a record store with stable IDs,
-updates, deletion, and space reclamation. SQL and the `Database` API shown above
-are future milestones.
+updates, deletion, and space reclamation. Milestone 3 adds persistent B+ tree
+indexes with unique integer keys, point lookups, range scans, and deletion with
+rebalancing. SQL and the `Database` API shown above are future milestones.
 
 With stable Rust installed, run:
 
@@ -75,3 +76,14 @@ cargo run -p tinydb --example records -- /tmp/tinydb-records.db
 The example inserts, updates, and deletes records, then reopens the file. Read
 the [record storage design](docs/record-storage.md) for the binary format,
 stable-ID behavior, and single-page record/update limits.
+
+To index real records, provide two separate **new file paths**:
+
+```sh
+cargo run -p tinydb --example index -- /tmp/tinydb-index-heap.db /tmp/tinydb-index.db
+```
+
+The example builds an index, deletes a key and its record, then reopens both
+files for point lookups and an ordered range scan. Read the
+[B+ tree design](docs/b-plus-tree.md) for node layouts, splitting, deletion,
+validation, and the current separate-file constraint.

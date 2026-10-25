@@ -18,6 +18,6 @@ Work through the milestones in order, using the [learning process](../learning-p
 
 > Testing is continuous throughout the project; Milestone 9 consolidates the test harness and benchmarks.
 
-Start with [Milestone 1: Storage fundamentals](01-storage-fundamentals.md#first-task).
+Milestones 1–3 are implemented. Continue with [Milestone 4: SQL language](04-sql-language.md).
 
 [Documentation index](../README.md)

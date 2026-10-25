@@ -66,8 +66,11 @@ Missing/deleted slots report `NotFound`; invalid page IDs retain the pager's
 
 Use one store per file and call `sync()` before relying on persistence. The
 pager's write-error and crash-recovery limitations still apply. There is no
-transaction, table catalog, index, free-space map, or page deallocation yet.
+transaction, table catalog, integrated index, free-space map, or page deallocation yet.
 Insertion scans linearly; direct record lookup reads one page.
+
+[B+ tree indexes](b-plus-tree.md) map integer keys to these record IDs in a
+separate file. Callers explicitly maintain both structures.
 
 ## Learning notes
 
