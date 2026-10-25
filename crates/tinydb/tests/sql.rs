@@ -118,12 +118,30 @@ fn all_statement_kinds_retain_schema_values_projections_and_assignments() {
     };
     assert_eq!(
         projection,
-        &Projection::Columns(vec!["name".into(), "id".into()])
+        &Projection::Items(vec![
+            tinydb::sql::SelectItem {
+                expression: tinydb::sql::SelectExpr::Column(tinydb::sql::ColumnRef {
+                    table: None,
+                    name: "name".into()
+                }),
+                alias: None
+            },
+            tinydb::sql::SelectItem {
+                expression: tinydb::sql::SelectExpr::Column(tinydb::sql::ColumnRef {
+                    table: None,
+                    name: "id".into()
+                }),
+                alias: None
+            },
+        ])
     );
     assert_eq!(
         filter,
         &Some(Expr::IsNull {
-            expression: Box::new(Expr::Column("age".into())),
+            expression: Box::new(Expr::Column(tinydb::sql::ColumnRef {
+                table: None,
+                name: "age".into()
+            })),
             negated: true
         })
     );
@@ -252,7 +270,7 @@ fn syntax_errors_identify_unicode_positions_eof_and_integer_overflow() {
         "UPDATE users SET id = id + 1",
         "DELETE users",
         "SELECT * FROM users SELECT * FROM users",
-        "SELECT * FROM users ORDER BY id",
+        "SELECT * FROM users ORDER BY",
         "SELECT * FROM users WHERE id ! 2",
         "SELECT * FROM users WHERE id = 1.5",
         "SELECT * FROM users WHERE id = ?",

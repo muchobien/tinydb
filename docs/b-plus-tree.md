@@ -12,8 +12,9 @@ An index owns a separate pager file with the existing version 1 database header.
 Page 1 is always the root, initially an empty leaf. Root growth copies its left
 half to a new page and replaces page 1 with an internal node. Root contraction
 copies its only child into page 1. The heap file is separate because RecordStore
-currently interprets every data page as a slotted page. A future catalog can
-coordinate heaps and indexes in one database file.
+currently interprets every data page as a slotted page. The
+[Database catalog](relational-execution.md) coordinates these separate files;
+consolidating them into one file remains future work.
 
 All numbers are explicitly little-endian. Every node starts with a 16-byte
 header. Bytes 4–5 contain the number of keys (`u16`); bytes 6–7 are zero.

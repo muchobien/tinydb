@@ -17,6 +17,7 @@ pub enum TokenKind {
     LeftParen,
     RightParen,
     Comma,
+    Dot,
     Semicolon,
     Star,
     Plus,
@@ -67,6 +68,7 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SqlError> {
             '(' => TokenKind::LeftParen,
             ')' => TokenKind::RightParen,
             ',' => TokenKind::Comma,
+            '.' => TokenKind::Dot,
             ';' => TokenKind::Semicolon,
             '*' => TokenKind::Star,
             '+' => TokenKind::Plus,
@@ -163,7 +165,19 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SqlError> {
                 let uppercase = word.to_ascii_uppercase();
                 if matches!(
                     uppercase.as_str(),
-                    "CREATE"
+                    "AS" | "INNER"
+                        | "JOIN"
+                        | "ON"
+                        | "ORDER"
+                        | "BY"
+                        | "ASC"
+                        | "DESC"
+                        | "GROUP"
+                        | "COUNT"
+                        | "SUM"
+                        | "MIN"
+                        | "MAX"
+                        | "CREATE"
                         | "TABLE"
                         | "INTEGER"
                         | "TEXT"

@@ -1,8 +1,14 @@
 use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 
+use tinydb::Database;
 use tinydb::sql::{Output, Session, SqlError, TokenKind, parse, tokenize};
 use tinydb::storage::Value;
+
+enum Engine {
+    Memory(Session),
+    Persistent(Database),
+}
 
 fn main() -> ExitCode {
     match run() {
@@ -15,21 +21,39 @@ fn main() -> ExitCode {
     }
 }
 
-fn run() -> io::Result<bool> {
-    if std::env::args_os().len() != 1 {
+fn run() -> Result<bool, Box<dyn std::error::Error>> {
+    let mut arguments = std::env::args_os().skip(1);
+    let path = arguments.next().map(std::path::PathBuf::from);
+    if arguments.next().is_some() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "usage: tinydb-cli (reads SQL from stdin; tables live in memory)",
-        ));
+            "usage: tinydb-cli [database-directory] (reads SQL from stdin)",
+        )
+        .into());
     }
+    let mut engine = if let Some(path) = &path {
+        Engine::Persistent(if path.exists() {
+            Database::open(path)?
+        } else {
+            Database::create(path)?
+        })
+    } else {
+        Engine::Memory(Session::default())
+    };
     let stdin = io::stdin();
     let interactive = stdin.is_terminal();
     if interactive {
-        println!(
-            "TinyDB SQL (in memory; tables disappear on exit). End statements with ';'. Ctrl-D exits."
-        );
+        if let Some(path) = &path {
+            println!(
+                "TinyDB SQL ({}). End statements with ';'. Ctrl-D exits.",
+                path.display()
+            );
+        } else {
+            println!(
+                "TinyDB SQL (in memory; tables disappear on exit). End statements with ';'. Ctrl-D exits."
+            );
+        }
     }
-    let mut session = Session::default();
     let mut buffer = String::new();
     let mut success = true;
     loop {
@@ -42,7 +66,7 @@ fn run() -> io::Result<bool> {
             io::stdout().flush()?;
         }
         if stdin.read_line(&mut buffer)? == 0 {
-            return Ok(execute(&buffer, &mut session) && success);
+            return Ok(execute(&buffer, &mut engine) && success);
         }
         match tokenize(&buffer) {
             Ok(tokens) => {
@@ -52,7 +76,7 @@ fn run() -> io::Result<bool> {
                     .map(|token| token.span.end)
                 {
                     let source: String = buffer.drain(..end).collect();
-                    success = execute(&source, &mut session) && success;
+                    success = execute(&source, &mut engine) && success;
                 }
             }
             Err(error) if error.message.starts_with("unterminated") => {}
@@ -72,7 +96,7 @@ fn report(source: &str, error: &SqlError) {
     }
 }
 
-fn execute(source: &str, session: &mut Session) -> bool {
+fn execute(source: &str, engine: &mut Engine) -> bool {
     let statements = match parse(source) {
         Ok(statements) => statements,
         Err(error) => {
@@ -82,7 +106,15 @@ fn execute(source: &str, session: &mut Session) -> bool {
     };
     let mut success = true;
     for statement in statements {
-        match session.execute(&statement) {
+        let result = match engine {
+            Engine::Memory(session) => session
+                .execute(&statement)
+                .map_err(|error| error.to_string()),
+            Engine::Persistent(database) => database
+                .execute_statement(&statement)
+                .map_err(|error| error.to_string()),
+        };
+        match result {
             Ok(Output::Created) => println!("CREATE TABLE"),
             Ok(Output::Affected(count)) => println!("{count} row(s) affected"),
             Ok(Output::Rows { columns, rows }) => {

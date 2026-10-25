@@ -1,10 +1,9 @@
 # SQL language
 
-Milestone 4 turns SQL text into tokens and an AST, then executes the supported
-statements in an in-memory `sql::Session`. The terminal uses the same parser and
-session API. Tables disappear when the process exits. The pager, heap, and
-index implementations remain separate; a persistent schema catalog and
-relational execution over stored tables belong to Milestone 5.
+The SQL frontend turns text into tokens and an AST. `sql::Session` executes the
+language in memory; `Database` executes it over persistent tables and indexes.
+Both modes share the evaluator. See [Relational execution](relational-execution.md)
+for catalog storage, scan plans, joins, grouping, ordering, and persistence.
 
 ## Grammar
 
@@ -15,7 +14,16 @@ create       = CREATE TABLE name "(" column {"," column} ")" ;
 column       = name (INTEGER | TEXT) {NOT NULL | PRIMARY KEY} ;
 insert       = INSERT INTO name ["(" names ")"] VALUES row {"," row} ;
 row          = "(" literal {"," literal} ")" ;
-select       = SELECT ("*" | names) FROM name [WHERE expression] ;
+select       = SELECT ("*" | items) FROM name [AS name] {join}
+               [WHERE expression] [GROUP BY columns] [ORDER BY orders] ;
+join         = [INNER] JOIN name [AS name] ON expression ;
+items        = item {"," item} ;
+item         = (column_ref | aggregate) [AS name] ;
+aggregate    = COUNT "(" ("*" | column_ref) ")"
+             | (SUM | MIN | MAX) "(" column_ref ")" ;
+columns      = column_ref {"," column_ref} ;
+orders       = column_ref [ASC | DESC] {"," column_ref [ASC | DESC]} ;
+column_ref   = name ["." name] ;
 update       = UPDATE name SET assignment {"," assignment} [WHERE expression] ;
 assignment   = name "=" literal ;
 delete       = DELETE FROM name [WHERE expression] ;
@@ -24,7 +32,7 @@ expression   = conjunction {OR conjunction} ;
 conjunction  = negation {AND negation} ;
 negation     = NOT negation | predicate ;
 predicate    = primary [comparison primary | IS [NOT] NULL] ;
-primary      = name | literal | "(" expression ")" ;
+primary      = column_ref | literal | "(" expression ")" ;
 comparison   = "=" | "!=" | "<>" | "<" | "<=" | ">" | ">=" ;
 literal      = NULL | ["+" | "-"] digits | string ;
 ```
@@ -80,7 +88,8 @@ late in a multirow insert or an update that produces duplicate primary keys.
 DELETE validates its predicate before removing rows. Earlier successful
 statements remain applied when a later statement fails; there are no script
 transactions. This small session clones rows for mutation validation and scans
-tables; storage-backed execution and query planning come next.
+tables. Persistent execution uses the same validation and updates heap/index
+files as described in the [execution guide](relational-execution.md).
 
 ## Library API
 
@@ -119,7 +128,13 @@ SELECT * FROM users;
 SQL
 ```
 
-Each process starts with an empty session; the CLI accepts no database path.
+Without arguments, each process starts with an empty in-memory session. Pass a
+database directory to create or reopen persistent tables:
+
+```sh
+cargo run -p tinydb-cli -- app-data
+```
+
 Results use tab-separated headers and values, with text quoted and control
 characters escaped. Errors go to stderr with source positions and a caret for
 syntax errors. Positions refer to the pending input buffer. The terminal
@@ -128,8 +143,10 @@ error occurred. Each complete input chunk is parsed before it executes; a
 syntax error prevents that chunk from running. Semantic errors leave that
 statement unchanged and allow later parsed statements to run.
 
-Projections currently accept column names or `*`. UPDATE assignments accept
-literals. Joins, aliases, ordering, aggregation, arithmetic, persistent tables,
-and the target `Database::open` API remain future work.
+Projections accept column names, `*`, or COUNT/SUM/MIN/MAX aggregates, with
+optional AS aliases. Table aliases and qualified names support inner joins.
+ORDER BY accepts columns/output names, while GROUP BY accepts columns. UPDATE
+assignments accept literals. Outer joins, HAVING, arithmetic, AVG, DISTINCT,
+LIMIT, and transactions remain future work.
 
 [Architecture](architecture.md) · [Milestone 4](roadmap/04-sql-language.md)

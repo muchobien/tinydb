@@ -3,7 +3,7 @@ use std::io::{self, ErrorKind};
 use super::header::invalid_data;
 
 /// Values supported by the initial, schema-independent record format.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Value {
     Null,
     Integer(i64),

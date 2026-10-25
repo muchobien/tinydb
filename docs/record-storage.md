@@ -70,7 +70,8 @@ transaction, table catalog, integrated index, free-space map, or page deallocati
 Insertion scans linearly; direct record lookup reads one page.
 
 [B+ tree indexes](b-plus-tree.md) map integer keys to these record IDs in a
-separate file. Callers explicitly maintain both structures.
+separate file. Direct callers explicitly maintain both structures; the
+[Database API](relational-execution.md) maintains them for persistent SQL tables.
 
 ## Learning notes
 

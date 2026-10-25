@@ -63,8 +63,9 @@ path, and contract the root when needed. Retired pages stay allocated.
 Opening validates the entire tree, including separator values, occupancy,
 equal leaf depths, forward links, and unreachable pages. Subsequent point
 operations follow a root-to-leaf path. Index values refer to a separate heap;
-callers coordinate heap and index mutations explicitly. A shared catalog and
-atomic heap/index transactions remain future work.
+direct callers coordinate heap and index mutations explicitly. The Database
+API below adds a catalog and maintains those mappings; atomic heap/index
+transactions remain future work.
 
 See [B+ tree indexes](b-plus-tree.md) for byte layouts and failure semantics,
 the [implementation](../crates/tinydb/src/index/btree.rs), and
@@ -85,10 +86,28 @@ checked before mutations replace table state. WHERE uses three-valued logic;
 projections return column names and values. The `tinydb-cli` workspace member
 uses this API for multiline interactive input and piped scripts.
 
-The session has no persistent catalog and does not connect SQL to the existing
-heap or index files. Those storage-backed paths, joins, ordering, and aggregation
-remain Milestone 5. See the [SQL language guide](sql-language.md),
+The session remains an in-memory execution mode. The persistent Database API
+described below uses the same evaluator. See the [SQL language guide](sql-language.md),
 [SQL integration tests](../crates/tinydb/tests/sql.rs), and
 [terminal integration tests](../crates/tinydb-cli/tests/terminal.rs).
+
+## Implemented: relational execution
+
+`Database` owns a database directory with a schema RecordStore, per-table heap
+files, and integer primary-key B+ trees. Opening validates schemas, row
+constraints, and exact heap/index agreement. Each statement reads current rows
+from storage into the shared session evaluator. Mutations validate candidates
+and encoded sizes before updating heaps and index mappings, then synchronize
+the files. Storage errors poison the handle; crash recovery remains future work.
+
+A small rule-based planner selects sequential heap scans or integer primary-key
+index bounds for single-table SELECT statements. `Database::plan` exposes those
+choices. Inner joins use nested loops and qualified column binding. Filtering,
+projection, GROUP BY, COUNT/SUM/MIN/MAX, and ORDER BY produce materialized rows.
+The terminal accepts an optional database directory for persistent sessions.
+
+See [Relational execution](relational-execution.md) for catalog encoding,
+execution order, APIs, and failure semantics. Cost-based optimization, a shared
+single-file layout, and transactions remain future work.
 
 [Documentation index](README.md)

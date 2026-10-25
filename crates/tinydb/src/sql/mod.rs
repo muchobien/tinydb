@@ -6,10 +6,14 @@ mod session;
 use std::fmt;
 use std::ops::Range;
 
-pub use ast::{ColumnDefinition, Comparison, DataType, Expr, Projection, Statement};
+pub use ast::{
+    Aggregate, ColumnDefinition, ColumnRef, Comparison, DataType, Expr, Join, OrderBy, Projection,
+    SelectExpr, SelectItem, Statement,
+};
 pub use lexer::{Token, TokenKind, tokenize};
 pub use parser::parse;
 pub use session::{ExecutionError, Output, Session};
+pub(crate) use session::{Table, evaluate, resolve, truth, validate_predicate, validate_rows};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SqlError {

@@ -4,16 +4,21 @@ Build a small, embedded relational database from scratch in Rust to understand d
 
 This is an educational project, **not** a production-ready SQLite replacement.
 
-### Target usage
+### Usage
 
 ```rust
-let db = Database::open("app.db")?;
+use tinydb::Database;
+
+let mut db = Database::create("app-data")?;
 
 db.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, age INTEGER)")?;
 db.execute("INSERT INTO users VALUES (1, 'Alice', 25)")?;
 
 let rows = db.query("SELECT * FROM users WHERE id = 1")?;
 ```
+
+Databases currently use a directory containing a catalog, table heaps, and
+integer primary-key indexes. Reopen it with `Database::open("app-data")`.
 
 ### Target features
 
@@ -46,8 +51,9 @@ adds typed record encoding, slotted pages, and a record store with stable IDs,
 updates, deletion, and space reclamation. Milestone 3 adds persistent B+ tree
 indexes with unique integer keys, point lookups, range scans, and deletion with
 rebalancing. Milestone 4 adds a SQL lexer, parser, AST, and terminal execution
-over in-memory tables. Persistent SQL tables and the `Database` API shown
-above are future milestones.
+over in-memory tables. Milestone 5 connects SQL to persistent tables and indexes,
+with inner joins, ordering, grouping, and basic aggregates. Transactions and
+crash recovery remain future milestones.
 
 With stable Rust installed, run:
 
@@ -105,6 +111,14 @@ DELETE FROM users WHERE id = 2;
 ```
 
 End statements with `;` and exit with Ctrl-D. SQL can also be piped to stdin.
-Tables disappear when the session exits. Read the
+Tables disappear when an in-memory session exits. To create or reopen persistent
+tables, pass a database directory:
+
+```sh
+cargo run -p tinydb-cli -- app-data
+```
+
+Read the
 [SQL language guide](docs/sql-language.md) for grammar, diagnostics, constraints,
-NULL behavior, and the library API.
+and NULL behavior, and the [relational execution guide](docs/relational-execution.md)
+for the catalog, persistent API, scan plans, joins, ordering, and aggregation.

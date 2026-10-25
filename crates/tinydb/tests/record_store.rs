@@ -117,6 +117,37 @@ fn create_and_open_preserve_existing_files_and_require_valid_storage() {
 }
 
 #[test]
+fn sequential_scan_returns_stable_ids_and_skips_tombstones_across_pages() {
+    let db = TestDb::new();
+    let mut store = RecordStore::create(&db.path).unwrap();
+    let mut expected = Vec::new();
+    for index in 0..300 {
+        let record = sample(index);
+        let id = store.insert(&record).unwrap();
+        if index % 3 == 0 {
+            store.delete(id).unwrap();
+        } else {
+            expected.push((id, record));
+        }
+    }
+    for (index, (id, record)) in expected.iter_mut().enumerate() {
+        if index % 5 == 0 {
+            *record = text("updated");
+            store.update(*id, record).unwrap();
+        }
+    }
+    assert!(store.page_count() > 1);
+    expected.sort_by_key(|(id, _)| (id.page_id, id.slot_id));
+    assert_eq!(store.scan().unwrap(), expected);
+    store.sync().unwrap();
+    drop(store);
+    assert_eq!(
+        RecordStore::open(&db.path).unwrap().scan().unwrap(),
+        expected
+    );
+}
+
+#[test]
 fn oversized_inserts_do_not_allocate_pages() {
     let db = TestDb::new();
     let mut store = RecordStore::create(&db.path).unwrap();

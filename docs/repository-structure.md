@@ -27,8 +27,10 @@ tinydb/
 │   │       │   ├── ast.rs
 │   │       │   └── session.rs
 │   │       ├── execution/
+│   │       │   ├── mod.rs
+│   │       │   ├── database.rs
 │   │       │   ├── planner.rs
-│   │       │   └── executor.rs
+│   │       │   └── query.rs
 │   │       ├── transaction/
 │   │       │   ├── wal.rs
 │   │       │   └── recovery.rs
@@ -50,7 +52,9 @@ runnable examples in `crates/tinydb/examples`. Milestone 2 adds `record.rs`,
 integration tests. Milestone 3 adds `index/{mod,btree}.rs`, B+ tree integration
 tests, and a heap/index example. Milestone 4 adds the SQL lexer, parser, AST,
 and in-memory session, plus the `tinydb-cli` crate and terminal integration
-tests. The execution, transaction, and buffer modules remain planned.
+tests. Milestone 5 adds the persistent Database, scan planner, and relational
+query evaluator under `execution/`, plus heap scanning and persistent terminal
+input. The transaction and buffer modules remain planned.
 
 The learning documentation is organized as:
 
@@ -62,6 +66,7 @@ docs/
 ├── record-storage.md
 ├── b-plus-tree.md
 ├── sql-language.md
+├── relational-execution.md
 ├── design-decisions.md
 ├── learning-process.md
 ├── references.md

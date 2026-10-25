@@ -70,6 +70,23 @@ impl RecordStore {
         Record::decode(page.read(id.slot_id)?)
     }
 
+    pub fn scan(&mut self) -> io::Result<Vec<(RecordId, Record)>> {
+        let mut records = Vec::new();
+        for page_id in 1..=self.pager.page_count() {
+            let page = SlottedPage::from_page(self.pager.read_page(page_id)?)?;
+            for slot_id in 0..page.slot_count() {
+                match page.read(slot_id) {
+                    Ok(bytes) => {
+                        records.push((RecordId { page_id, slot_id }, Record::decode(bytes)?))
+                    }
+                    Err(error) if error.kind() == ErrorKind::NotFound => {}
+                    Err(error) => return Err(error),
+                }
+            }
+        }
+        Ok(records)
+    }
+
     /// Replaces a record without changing its ID or moving it to another page.
     pub fn update(&mut self, id: RecordId, record: &Record) -> io::Result<()> {
         let mut page = SlottedPage::from_page(self.pager.read_page(id.page_id)?)?;

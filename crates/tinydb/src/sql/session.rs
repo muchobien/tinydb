@@ -1,9 +1,10 @@
 use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 
+use crate::execution::{Field, select};
 use crate::storage::Value;
 
-use super::{ColumnDefinition, Comparison, DataType, Expr, Projection, Statement};
+use super::{ColumnDefinition, ColumnRef, Comparison, DataType, Expr, Statement};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ExecutionError(pub String);
@@ -28,12 +29,12 @@ pub enum Output {
 
 #[derive(Default)]
 pub struct Session {
-    tables: BTreeMap<String, Table>,
+    pub(crate) tables: BTreeMap<String, Table>,
 }
 
-struct Table {
-    columns: Vec<ColumnDefinition>,
-    rows: Vec<Vec<Value>>,
+pub(crate) struct Table {
+    pub columns: Vec<ColumnDefinition>,
+    pub rows: Vec<Vec<Value>>,
 }
 
 impl Session {
@@ -108,42 +109,13 @@ impl Session {
                 table.rows = candidate;
                 Ok(Output::Affected(rows.len()))
             }
-            Statement::Select {
-                table,
-                projection,
-                filter,
-            } => {
-                let table = self
-                    .tables
-                    .get(table)
-                    .ok_or_else(|| ExecutionError(format!("unknown table {table:?}")))?;
-                let targets = match projection {
-                    Projection::All => (0..table.columns.len()).collect::<Vec<_>>(),
-                    Projection::Columns(columns) => columns
-                        .iter()
-                        .map(|name| column_index(&table.columns, name))
-                        .collect::<Result<Vec<_>, _>>()?,
-                };
-                let rows = filtered_rows(table, filter.as_ref())?
-                    .into_iter()
-                    .map(|index| {
-                        targets
-                            .iter()
-                            .map(|&target| table.rows[index][target].clone())
-                            .collect()
-                    })
-                    .collect();
-                let columns = targets
-                    .iter()
-                    .map(|&target| table.columns[target].name.clone())
-                    .collect();
-                Ok(Output::Rows { columns, rows })
-            }
+            Statement::Select { .. } => select(&self.tables, statement),
             Statement::Update {
                 table,
                 assignments,
                 filter,
             } => {
+                let name = table.as_str();
                 let table = self
                     .tables
                     .get_mut(table)
@@ -158,7 +130,7 @@ impl Session {
                     }
                     targets.push((target, value));
                 }
-                let selected = filtered_rows(table, filter.as_ref())?;
+                let selected = filtered_rows(name, table, filter.as_ref())?;
                 let mut candidate = table.rows.clone();
                 for &index in &selected {
                     for &(target, value) in &targets {
@@ -170,11 +142,12 @@ impl Session {
                 Ok(Output::Affected(selected.len()))
             }
             Statement::Delete { table, filter } => {
+                let name = table.as_str();
                 let table = self
                     .tables
                     .get_mut(table)
                     .ok_or_else(|| ExecutionError(format!("unknown table {table:?}")))?;
-                let selected = filtered_rows(table, filter.as_ref())?;
+                let selected = filtered_rows(name, table, filter.as_ref())?;
                 table.rows = table
                     .rows
                     .iter()
@@ -195,7 +168,10 @@ fn column_index(columns: &[ColumnDefinition], name: &str) -> Result<usize, Execu
         .ok_or_else(|| ExecutionError(format!("unknown column {name:?}")))
 }
 
-fn validate_rows(columns: &[ColumnDefinition], rows: &[Vec<Value>]) -> Result<(), ExecutionError> {
+pub(crate) fn validate_rows(
+    columns: &[ColumnDefinition],
+    rows: &[Vec<Value>],
+) -> Result<(), ExecutionError> {
     for row in rows {
         if row.len() != columns.len() {
             return Err(ExecutionError("row width does not match schema".into()));
@@ -221,25 +197,34 @@ fn validate_rows(columns: &[ColumnDefinition], rows: &[Vec<Value>]) -> Result<()
     Ok(())
 }
 
-fn filtered_rows(table: &Table, filter: Option<&Expr>) -> Result<Vec<usize>, ExecutionError> {
+fn filtered_rows(
+    name: &str,
+    table: &Table,
+    filter: Option<&Expr>,
+) -> Result<Vec<usize>, ExecutionError> {
     let Some(filter) = filter else {
         return Ok((0..table.rows.len()).collect());
     };
-    if expression_type(filter, &table.columns)? == Some(DataType::Text) {
-        return Err(ExecutionError(
-            "boolean expressions require INTEGER or NULL".into(),
-        ));
-    }
+    let fields: Vec<_> = table
+        .columns
+        .iter()
+        .map(|column| Field {
+            name: column.name.clone(),
+            table: name.into(),
+            data_type: column.data_type,
+        })
+        .collect();
+    validate_predicate(filter, &fields)?;
     let mut selected = Vec::new();
     for (index, row) in table.rows.iter().enumerate() {
-        if truth(evaluate(filter, &table.columns, row)?)? == Some(true) {
+        if truth(evaluate(filter, &fields, row)?)? == Some(true) {
             selected.push(index);
         }
     }
     Ok(selected)
 }
 
-fn truth(value: Value) -> Result<Option<bool>, ExecutionError> {
+pub(crate) fn truth(value: Value) -> Result<Option<bool>, ExecutionError> {
     match value {
         Value::Null => Ok(None),
         Value::Integer(value) => Ok(Some(value != 0)),
@@ -265,15 +250,15 @@ fn validate_value(column: &ColumnDefinition, value: &Value) -> Result<(), Execut
     }
 }
 
-fn expression_type(
+pub(crate) fn expression_type(
     expression: &Expr,
-    columns: &[ColumnDefinition],
+    columns: &[Field],
 ) -> Result<Option<DataType>, ExecutionError> {
     match expression {
         Expr::Literal(Value::Null) => Ok(None),
         Expr::Literal(Value::Integer(_)) => Ok(Some(DataType::Integer)),
         Expr::Literal(Value::Text(_)) => Ok(Some(DataType::Text)),
-        Expr::Column(name) => Ok(Some(columns[column_index(columns, name)?].data_type)),
+        Expr::Column(name) => Ok(Some(columns[resolve(columns, name)?].data_type)),
         Expr::Compare { left, right, .. } => {
             let left = expression_type(left, columns)?;
             let right = expression_type(right, columns)?;
@@ -309,14 +294,14 @@ fn expression_type(
     }
 }
 
-fn evaluate(
+pub(crate) fn evaluate(
     expression: &Expr,
-    columns: &[ColumnDefinition],
+    columns: &[Field],
     row: &[Value],
 ) -> Result<Value, ExecutionError> {
     match expression {
         Expr::Literal(value) => Ok(value.clone()),
-        Expr::Column(name) => Ok(row[column_index(columns, name)?].clone()),
+        Expr::Column(name) => Ok(row[resolve(columns, name)?].clone()),
         Expr::Compare {
             left,
             operator,
@@ -373,5 +358,36 @@ fn evaluate(
             }
             Ok(result.map_or(Value::Null, |value| Value::Integer(i64::from(value))))
         }
+    }
+}
+
+pub(crate) fn resolve(columns: &[Field], reference: &ColumnRef) -> Result<usize, ExecutionError> {
+    let mut found = columns.iter().enumerate().filter(|(_, column)| {
+        column.name == reference.name
+            && reference
+                .table
+                .as_ref()
+                .is_none_or(|table| &column.table == table)
+    });
+    let index = found
+        .next()
+        .map(|(index, _)| index)
+        .ok_or_else(|| ExecutionError(format!("unknown column {reference:?}")))?;
+    if found.next().is_some() {
+        return Err(ExecutionError(format!("ambiguous column {reference:?}")));
+    }
+    Ok(index)
+}
+
+pub(crate) fn validate_predicate(
+    expression: &Expr,
+    fields: &[Field],
+) -> Result<(), ExecutionError> {
+    if expression_type(expression, fields)? == Some(DataType::Text) {
+        Err(ExecutionError(
+            "boolean expressions require INTEGER or NULL".into(),
+        ))
+    } else {
+        Ok(())
     }
 }

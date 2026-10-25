@@ -1,8 +1,8 @@
 use crate::storage::Value;
 
 use super::{
-    ColumnDefinition, Comparison, DataType, Expr, Projection, SqlError, Statement, Token,
-    TokenKind, tokenize,
+    Aggregate, ColumnDefinition, ColumnRef, Comparison, DataType, Expr, Join, OrderBy, Projection,
+    SelectExpr, SelectItem, SqlError, Statement, Token, TokenKind, tokenize,
 };
 
 pub fn parse(source: &str) -> Result<Vec<Statement>, SqlError> {
@@ -101,6 +101,29 @@ impl Parser<'_> {
             names.push(self.identifier()?);
         }
         Ok(names)
+    }
+
+    fn column(&mut self) -> Result<ColumnRef, SqlError> {
+        let first = self.identifier()?;
+        if self.consume(&TokenKind::Dot) {
+            Ok(ColumnRef {
+                table: Some(first),
+                name: self.identifier()?,
+            })
+        } else {
+            Ok(ColumnRef {
+                table: None,
+                name: first,
+            })
+        }
+    }
+
+    fn alias(&mut self) -> Result<Option<String>, SqlError> {
+        if self.keyword("AS") {
+            Ok(Some(self.identifier()?))
+        } else {
+            Ok(None)
+        }
     }
 
     fn literal(&mut self) -> Result<Value, SqlError> {
@@ -226,14 +249,97 @@ impl Parser<'_> {
             let projection = if self.consume(&TokenKind::Star) {
                 Projection::All
             } else {
-                Projection::Columns(self.identifiers()?)
+                let mut items = Vec::new();
+                loop {
+                    let function = if self.keyword("COUNT") {
+                        Some(Aggregate::Count)
+                    } else if self.keyword("SUM") {
+                        Some(Aggregate::Sum)
+                    } else if self.keyword("MIN") {
+                        Some(Aggregate::Min)
+                    } else if self.keyword("MAX") {
+                        Some(Aggregate::Max)
+                    } else {
+                        None
+                    };
+                    let expression = if let Some(function) = function {
+                        self.expect(TokenKind::LeftParen)?;
+                        let column =
+                            if function == Aggregate::Count && self.consume(&TokenKind::Star) {
+                                None
+                            } else {
+                                Some(self.column()?)
+                            };
+                        self.expect(TokenKind::RightParen)?;
+                        SelectExpr::Aggregate { function, column }
+                    } else {
+                        SelectExpr::Column(self.column()?)
+                    };
+                    items.push(SelectItem {
+                        expression,
+                        alias: self.alias()?,
+                    });
+                    if !self.consume(&TokenKind::Comma) {
+                        break;
+                    }
+                }
+                Projection::Items(items)
             };
             self.expect_keyword("FROM")?;
             let table = self.identifier()?;
+            let alias = self.alias()?;
+            let mut joins = Vec::new();
+            loop {
+                let inner = self.keyword("INNER");
+                if !self.keyword("JOIN") {
+                    if inner {
+                        return Err(self.error("expected JOIN after INNER"));
+                    }
+                    break;
+                }
+                let table = self.identifier()?;
+                let alias = self.alias()?;
+                self.expect_keyword("ON")?;
+                joins.push(Join {
+                    table,
+                    alias,
+                    on: self.expression(0)?,
+                });
+            }
+            let filter = self.filter()?;
+            let mut group_by = Vec::new();
+            if self.keyword("GROUP") {
+                self.expect_keyword("BY")?;
+                loop {
+                    group_by.push(self.column()?);
+                    if !self.consume(&TokenKind::Comma) {
+                        break;
+                    }
+                }
+            }
+            let mut order_by = Vec::new();
+            if self.keyword("ORDER") {
+                self.expect_keyword("BY")?;
+                loop {
+                    let column = self.column()?;
+                    let descending = self.keyword("DESC");
+                    if !descending {
+                        self.keyword("ASC");
+                    }
+                    order_by.push(OrderBy { column, descending });
+                    if !self.consume(&TokenKind::Comma) {
+                        break;
+                    }
+                }
+            }
             return Ok(Statement::Select {
                 table,
+                alias,
+                joins,
                 projection,
-                filter: self.filter()?,
+                filter,
+                group_by,
+                order_by,
             });
         }
         if self.keyword("UPDATE") {
@@ -339,7 +445,7 @@ impl Parser<'_> {
             self.tokens.get(self.position).map(|token| &token.kind),
             Some(TokenKind::Identifier(_))
         ) {
-            Ok(Expr::Column(self.identifier()?))
+            Ok(Expr::Column(self.column()?))
         } else {
             Ok(Expr::Literal(self.literal()?))
         }

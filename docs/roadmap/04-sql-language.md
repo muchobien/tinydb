@@ -31,8 +31,9 @@
 - [SQL tests](../../crates/tinydb/tests/sql.rs) and [terminal tests](../../crates/tinydb-cli/tests/terminal.rs)
 
 Run `cargo run -p tinydb-cli`. Tables live in memory for the process lifetime;
-the CLI accepts no database path. Persistent schema/catalog storage, joins,
-ordering, aggregation, and query planning remain Milestone 5. Run
+omit the database directory for this mode. [Milestone 5](05-relational-execution.md)
+adds optional persistent database directories, joins, ordering, aggregation,
+and scan planning. Run
 `cargo test --workspace` to exercise all storage, indexing, SQL, and terminal
 integration coverage.
 

@@ -13,8 +13,12 @@ pub enum Statement {
     },
     Select {
         table: String,
+        alias: Option<String>,
+        joins: Vec<Join>,
         projection: Projection,
         filter: Option<Expr>,
+        group_by: Vec<ColumnRef>,
+        order_by: Vec<OrderBy>,
     },
     Update {
         table: String,
@@ -44,13 +48,55 @@ pub enum DataType {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Projection {
     All,
-    Columns(Vec<String>),
+    Items(Vec<SelectItem>),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ColumnRef {
+    pub table: Option<String>,
+    pub name: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Join {
+    pub table: String,
+    pub alias: Option<String>,
+    pub on: Expr,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SelectItem {
+    pub expression: SelectExpr,
+    pub alias: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SelectExpr {
+    Column(ColumnRef),
+    Aggregate {
+        function: Aggregate,
+        column: Option<ColumnRef>,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Aggregate {
+    Count,
+    Sum,
+    Min,
+    Max,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OrderBy {
+    pub column: ColumnRef,
+    pub descending: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Expr {
     Literal(Value),
-    Column(String),
+    Column(ColumnRef),
     Compare {
         left: Box<Expr>,
         operator: Comparison,
