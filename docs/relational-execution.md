@@ -96,14 +96,14 @@ unchanged rows retain their IDs. DELETE removes index entries and retires heap
 slots. The lower-level RecordStore update API retains its original same-page,
 stable-ID behavior.
 
-Every successful mutation synchronizes heaps, indexes, catalog, and the database
-directory. `sync()` is also available explicitly. Use one database owner per
-directory; the underlying files have no locking. An I/O/storage failure poisons
-the handle: discard it and inspect the files before reopening. Writes across
-files are not crash-atomic, and a failure can leave inconsistent files or
-unreferenced files. Transactions, rollback, WAL, and recovery belong to
-Milestone 6. Earlier successful statements remain applied when a later semantic
-error occurs; a script is not a transaction.
+The [transaction layer](transactions.md) now stages mutations, synchronizes a
+committed WAL, and checkpoints catalog, heap, and index changes together. Each
+mutation automatically commits unless enclosed in BEGIN/COMMIT/ROLLBACK. The
+database holds an exclusive lock and recovers before validating stored state.
+`sync()` flushes the current view; COMMIT publishes pending transaction changes.
+An I/O/storage failure poisons the handle and reopening runs recovery. Earlier
+successful statements remain applied after a later semantic error; use explicit
+transaction control to choose whether to commit or discard the pending group.
 
 ## API and terminal
 

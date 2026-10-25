@@ -293,7 +293,10 @@ fn database_creation_preserves_existing_paths_and_quoted_names_use_numeric_files
         .keys()
         .map(|path| path.file_name().unwrap().to_str().unwrap().to_owned())
         .collect();
-    assert_eq!(names, vec!["catalog.db", "index-1.db", "table-1.db"]);
+    assert_eq!(
+        names,
+        vec![".lock", "catalog.db", "index-1.db", "table-1.db", "wal.log"]
+    );
 }
 
 #[test]

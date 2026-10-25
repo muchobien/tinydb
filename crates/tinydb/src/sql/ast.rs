@@ -2,6 +2,9 @@ use crate::storage::Value;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Statement {
+    Begin,
+    Commit,
+    Rollback,
     CreateTable {
         name: String,
         columns: Vec<ColumnDefinition>,

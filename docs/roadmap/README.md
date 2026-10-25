@@ -18,6 +18,6 @@ Work through the milestones in order, using the [learning process](../learning-p
 
 > Testing is continuous throughout the project; Milestone 9 consolidates the test harness and benchmarks.
 
-Milestones 1–5 are implemented. Continue with [Milestone 6: Transactions and durability](06-transactions-and-durability.md).
+Milestones 1–6 are implemented. Continue with [Milestone 7: Buffer pool](07-buffer-pool.md).
 
 [Documentation index](../README.md)

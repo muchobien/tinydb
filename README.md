@@ -52,8 +52,9 @@ updates, deletion, and space reclamation. Milestone 3 adds persistent B+ tree
 indexes with unique integer keys, point lookups, range scans, and deletion with
 rebalancing. Milestone 4 adds a SQL lexer, parser, AST, and terminal execution
 over in-memory tables. Milestone 5 connects SQL to persistent tables and indexes,
-with inner joins, ordering, grouping, and basic aggregates. Transactions and
-crash recovery remain future milestones.
+with inner joins, ordering, grouping, and basic aggregates. Milestone 6 adds
+transactions, exclusive locking, a checksummed WAL, and crash recovery across
+the catalog, heaps, and indexes.
 
 With stable Rust installed, run:
 
@@ -73,7 +74,8 @@ hexdump -C /tmp/tinydb-example.db | head
 Read the [storage format and pager design](docs/storage-format.md), then explore
 the [Milestone 1 implementation](crates/tinydb/src/storage/pager.rs) and
 [tests](crates/tinydb/tests/pager.rs). The pager requires a single owner per file;
-transactions and crash recovery are planned for Milestone 6.
+the [Database transaction layer](docs/transactions.md) adds locking and recovery
+for persistent SQL operations.
 
 To try structured records, use a separate **new file path**:
 
@@ -122,3 +124,24 @@ Read the
 [SQL language guide](docs/sql-language.md) for grammar, diagnostics, constraints,
 and NULL behavior, and the [relational execution guide](docs/relational-execution.md)
 for the catalog, persistent API, scan plans, joins, ordering, and aggregation.
+
+Group persistent changes in a transaction:
+
+```sql
+BEGIN;
+UPDATE users SET age = 30 WHERE id = 1;
+INSERT INTO users VALUES (3, 'Charlie', 20);
+COMMIT;
+```
+
+Use ROLLBACK to discard pending schema and row changes. Mutations outside BEGIN
+commit individually. Exiting with an active transaction discards it. Read the
+[transaction guide](docs/transactions.md) for WAL layout, recovery, ownership,
+and sync ordering. A second database owner receives a lock error.
+
+To archive a committed WAL before checkpointing and then recover it, use a new
+directory:
+
+```sh
+cargo run -p tinydb --example recovery -- /tmp/tinydb-recovery
+```

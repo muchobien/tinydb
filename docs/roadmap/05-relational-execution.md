@@ -33,8 +33,9 @@
 
 Run `cargo run -p tinydb-cli -- app-data` to create or reopen a database
 directory. Omit the path for in-memory execution. Run `cargo test --workspace`
-for the integration suite. Atomic transactions, WAL/recovery, and concurrency
-remain Milestone 6; cost-based optimization remains Milestone 8.
+for the integration suite. [Milestone 6](06-transactions-and-durability.md) adds
+atomic transactions, WAL/recovery, and exclusive ownership; cost-based
+optimization remains Milestone 8.
 
 ---
 

@@ -30,6 +30,10 @@
 | SQL updates | Replace changed heap rows and maintain primary-key mappings | Allow row growth without changing the stable-ID RecordStore API |
 | SQL diagnostics | UTF-8 byte spans with line and character columns | Locate lexical and syntax errors in multiline input |
 | Durability | WAL | Learn atomicity and crash recovery |
+| Transaction staging | Private directory containing a copy of managed files | Leave committed files untouched until a durable commit record |
+| Initial WAL | Checksummed whole-file after-images, one transaction per checkpoint | Reuse storage formats while establishing redo and sync ordering |
+| Commit ordering | Sync WAL body, sync commit record, sync replacements/directory, clear WAL | Retain a durable redo source through interrupted checkpoints |
+| Database ownership | Exclusive OS lock held for each handle's lifetime | Serialize all owners before adding concurrent readers |
 | Concurrency | Single writer | Keep the first implementation manageable |
 | Dependencies | Minimal | Avoid hiding important internals |
 
@@ -37,7 +41,9 @@ Avoid `unsafe` Rust unless a specific need justifies it. Never serialize raw Rus
 
 The [version 1 storage format](storage-format.md) specifies the implemented
 header and pager. Explicit synchronization is available now; atomic writes,
-file locking, and recovery are deferred to their milestones.
+file locking, and recovery are provided for SQL operations by the
+[Database transaction layer](transactions.md). Direct pager access remains
+non-transactional.
 
 The [record storage format](record-storage.md) specifies the record codec and
 slotted-page layout. Initial insertion scans pages linearly for space; a
@@ -46,6 +52,7 @@ free-space map can be added after a demonstrated need.
 The [B+ tree format](b-plus-tree.md) specifies index nodes and whole-tree
 validation. Direct callers maintain heap/index consistency explicitly. The
 [Database API](relational-execution.md) now coordinates the separate files;
-atomic transactions remain future work.
+the [transaction coordinator](transactions.md) adds atomic commit and recovery
+across those files.
 
 [Documentation index](README.md)

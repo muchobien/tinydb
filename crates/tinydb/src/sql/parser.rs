@@ -169,6 +169,18 @@ impl Parser<'_> {
     }
 
     fn statement(&mut self) -> Result<Statement, SqlError> {
+        if self.keyword("BEGIN") {
+            self.keyword("TRANSACTION");
+            return Ok(Statement::Begin);
+        }
+        if self.keyword("COMMIT") {
+            self.keyword("TRANSACTION");
+            return Ok(Statement::Commit);
+        }
+        if self.keyword("ROLLBACK") {
+            self.keyword("TRANSACTION");
+            return Ok(Statement::Rollback);
+        }
         if self.keyword("CREATE") {
             self.expect_keyword("TABLE")?;
             let name = self.identifier()?;
@@ -368,7 +380,7 @@ impl Parser<'_> {
                 filter: self.filter()?,
             });
         }
-        Err(self.error("expected CREATE TABLE, INSERT, SELECT, UPDATE, or DELETE"))
+        Err(self.error("expected a SQL statement or BEGIN, COMMIT, ROLLBACK"))
     }
 
     fn filter(&mut self) -> Result<Option<Expr>, SqlError> {

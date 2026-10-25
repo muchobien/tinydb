@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashSet};
 use std::fmt;
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::{self, ErrorKind};
 use std::path::{Path, PathBuf};
 
@@ -58,7 +58,7 @@ impl From<SqlError> for DatabaseError {
     }
 }
 
-pub struct Database {
+pub(crate) struct DatabaseState {
     path: PathBuf,
     catalog: RecordStore,
     tables: BTreeMap<String, StoredTable>,
@@ -73,10 +73,9 @@ struct StoredTable {
     primary: Option<usize>,
 }
 
-impl Database {
+impl DatabaseState {
     pub fn create(path: impl AsRef<Path>) -> Result<Self, DatabaseError> {
         let path = std::path::absolute(path)?;
-        fs::create_dir(&path)?;
         let catalog = RecordStore::create(path.join("catalog.db"))?;
         let mut database = Self {
             path,
@@ -197,24 +196,6 @@ impl Database {
         })
     }
 
-    pub fn execute(&mut self, source: &str) -> Result<Vec<Output>, DatabaseError> {
-        let statements = parse(source)?;
-        statements
-            .iter()
-            .map(|statement| self.execute_statement(statement))
-            .collect()
-    }
-
-    pub fn query(&mut self, source: &str) -> Result<Output, DatabaseError> {
-        let statements = parse(source)?;
-        if statements.len() != 1 || !matches!(statements[0], Statement::Select { .. }) {
-            return Err(
-                ExecutionError("query requires exactly one SELECT statement".into()).into(),
-            );
-        }
-        self.execute_statement(&statements[0])
-    }
-
     pub fn plan(&self, source: &str) -> Result<Vec<ScanPlan>, DatabaseError> {
         self.ensure_healthy()?;
         let statements = parse(source)?;
@@ -262,6 +243,7 @@ impl Database {
 
     fn schema_session(&self) -> Session {
         Session {
+            snapshot: None,
             tables: self
                 .tables
                 .iter()
@@ -281,6 +263,14 @@ impl Database {
     pub fn execute_statement(&mut self, statement: &Statement) -> Result<Output, DatabaseError> {
         self.ensure_healthy()?;
         let result = (|| {
+            if matches!(
+                statement,
+                Statement::Begin | Statement::Commit | Statement::Rollback
+            ) {
+                return Err(
+                    ExecutionError("transaction control belongs to Database".into()).into(),
+                );
+            }
             let mut session = self.schema_session();
             if let Statement::CreateTable { name, columns } = statement {
                 let output = session.execute(statement)?;

@@ -115,7 +115,7 @@ fn persistent_sessions_keep_tables_indexes_and_join_results_across_processes() {
     let path = root.join("database");
     for (source, expected, success) in [
         (
-            "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, team INTEGER);\nCREATE TABLE teams (id INTEGER PRIMARY KEY, name TEXT);\nINSERT INTO users VALUES (1, 'Alice', 10), (2, 'Bob', 10);\nINSERT INTO teams VALUES (10, 'Blue');\n",
+            "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, team INTEGER);\nCREATE TABLE teams (id INTEGER PRIMARY KEY, name TEXT);\nINSERT INTO users VALUES (1, 'Alice', 10), (2, 'Bob', 10);\nINSERT INTO teams VALUES (10, 'Blue');\nBEGIN;\nINSERT INTO users VALUES (3, 'uncommitted', 10);\n",
             "1 row(s) affected\n",
             true,
         ),
@@ -125,7 +125,7 @@ fn persistent_sessions_keep_tables_indexes_and_join_results_across_processes() {
             true,
         ),
         (
-            "UPDATE users SET id = 20 WHERE id = 2;\nDELETE FROM users WHERE id = 1;\nSELECT id FROM users WHERE id >= 10;\n",
+            "BEGIN;\nUPDATE users SET id = 20 WHERE id = 2;\nDELETE FROM users WHERE id = 1;\nCOMMIT;\nSELECT id FROM users WHERE id >= 10;\n",
             "id\n20\n1 row(s)\n",
             true,
         ),
@@ -167,4 +167,20 @@ fn persistent_sessions_keep_tables_indexes_and_join_results_across_processes() {
     assert!(path.join("table-1.db").exists());
     assert!(path.join("index-1.db").exists());
     std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn memory_terminal_transactions_commit_and_roll_back_schema_and_rows() {
+    let output = run(
+        "BEGIN;\nCREATE TABLE transient (id INTEGER);\nROLLBACK;\nCREATE TABLE t (id INTEGER);\nBEGIN TRANSACTION;\nINSERT INTO t VALUES (1);\nCOMMIT TRANSACTION;\nBEGIN;\nDELETE FROM t;\nROLLBACK TRANSACTION;\nSELECT * FROM t;\n",
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap(),
+        "BEGIN\nCREATE TABLE\nROLLBACK\nCREATE TABLE\nBEGIN\n1 row(s) affected\nCOMMIT\nBEGIN\n1 row(s) affected\nROLLBACK\nid\n1\n1 row(s)\n"
+    );
 }

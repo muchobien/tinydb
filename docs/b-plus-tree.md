@@ -62,7 +62,9 @@ Tree depth is limited to 64 during validation to bound malformed input.
 Use a single owner per file. Invalid files report `InvalidData`; record page 0
 reports `InvalidInput`. Writes and synchronization retain the pager's failure
 semantics: discard the tree after an I/O write/sync failure. Splits and merges
-are not crash-atomic. Transactions, recovery, text/composite/nonunique keys,
-streaming cursors, and automatic heap/index coordination remain future work.
+are not crash-atomic. The [Database transaction layer](transactions.md) provides
+atomic commit and recovery for persistent SQL indexes and heaps. Direct tree
+users coordinate their own writes. Text/composite/nonunique keys and streaming
+cursors remain future work.
 
 [Architecture](architecture.md) · [Milestone 3](roadmap/03-b-plus-tree-indexes.md)

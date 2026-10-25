@@ -115,6 +115,9 @@ fn execute(source: &str, engine: &mut Engine) -> bool {
                 .map_err(|error| error.to_string()),
         };
         match result {
+            Ok(Output::Begun) => println!("BEGIN"),
+            Ok(Output::Committed) => println!("COMMIT"),
+            Ok(Output::RolledBack) => println!("ROLLBACK"),
             Ok(Output::Created) => println!("CREATE TABLE"),
             Ok(Output::Affected(count)) => println!("{count} row(s) affected"),
             Ok(Output::Rows { columns, rows }) => {

@@ -9,7 +9,8 @@ for catalog storage, scan plans, joins, grouping, ordering, and persistence.
 
 ```text
 script       = {";"} [statement {";" {";"} statement} {";"}] ;
-statement    = create | insert | select | update | delete ;
+statement    = create | insert | select | update | delete | transaction ;
+transaction  = (BEGIN | COMMIT | ROLLBACK) [TRANSACTION] ;
 create       = CREATE TABLE name "(" column {"," column} ")" ;
 column       = name (INTEGER | TEXT) {NOT NULL | PRIMARY KEY} ;
 insert       = INSERT INTO name ["(" names ")"] VALUES row {"," row} ;
@@ -86,8 +87,9 @@ INSERT and UPDATE prepare and validate candidate rows before replacing table
 state. A failed statement leaves the session unchanged, including a failure
 late in a multirow insert or an update that produces duplicate primary keys.
 DELETE validates its predicate before removing rows. Earlier successful
-statements remain applied when a later statement fails; there are no script
-transactions. This small session clones rows for mutation validation and scans
+statements remain applied when a later statement fails; BEGIN/ROLLBACK can
+discard the pending group. Scripts commit mutations individually outside an
+explicit transaction. This small session clones rows for mutation validation and scans
 tables. Persistent execution uses the same validation and updates heap/index
 files as described in the [execution guide](relational-execution.md).
 
@@ -141,12 +143,15 @@ syntax errors. Positions refer to the pending input buffer. The terminal
 continues with later input after errors and exits with a failure status if any
 error occurred. Each complete input chunk is parsed before it executes; a
 syntax error prevents that chunk from running. Semantic errors leave that
-statement unchanged and allow later parsed statements to run.
+statement unchanged and allow later parsed statements to run. BEGIN, COMMIT,
+and ROLLBACK control explicit transactions in both execution modes; pending
+changes are discarded on process exit.
 
 Projections accept column names, `*`, or COUNT/SUM/MIN/MAX aggregates, with
 optional AS aliases. Table aliases and qualified names support inner joins.
 ORDER BY accepts columns/output names, while GROUP BY accepts columns. UPDATE
 assignments accept literals. Outer joins, HAVING, arithmetic, AVG, DISTINCT,
-LIMIT, and transactions remain future work.
+and LIMIT remain future work. See [Transactions](transactions.md) for automatic
+statement commits, explicit transactions, locking, and recovery.
 
 [Architecture](architecture.md) · [Milestone 4](roadmap/04-sql-language.md)

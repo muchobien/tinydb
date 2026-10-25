@@ -4,5 +4,6 @@ pub mod execution;
 pub mod index;
 pub mod sql;
 pub mod storage;
+pub mod transaction;
 
 pub use execution::{Database, DatabaseError};

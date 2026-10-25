@@ -2,7 +2,9 @@ mod database;
 mod planner;
 mod query;
 
-pub use database::{Database, DatabaseError};
+pub use crate::transaction::Database;
+pub use database::DatabaseError;
+pub(crate) use database::DatabaseState;
 pub use planner::{AccessPath, ScanPlan};
 
 use crate::sql::DataType;

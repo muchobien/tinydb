@@ -19,6 +19,9 @@ impl std::error::Error for ExecutionError {}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Output {
+    Begun,
+    Committed,
+    RolledBack,
     Created,
     Affected(usize),
     Rows {
@@ -30,8 +33,10 @@ pub enum Output {
 #[derive(Default)]
 pub struct Session {
     pub(crate) tables: BTreeMap<String, Table>,
+    pub(crate) snapshot: Option<BTreeMap<String, Table>>,
 }
 
+#[derive(Clone)]
 pub(crate) struct Table {
     pub columns: Vec<ColumnDefinition>,
     pub rows: Vec<Vec<Value>>,
@@ -40,6 +45,26 @@ pub(crate) struct Table {
 impl Session {
     pub fn execute(&mut self, statement: &Statement) -> Result<Output, ExecutionError> {
         match statement {
+            Statement::Begin => {
+                if self.snapshot.is_some() {
+                    return Err(ExecutionError("a transaction is already active".into()));
+                }
+                self.snapshot = Some(self.tables.clone());
+                Ok(Output::Begun)
+            }
+            Statement::Commit => {
+                self.snapshot
+                    .take()
+                    .ok_or_else(|| ExecutionError("no active transaction".into()))?;
+                Ok(Output::Committed)
+            }
+            Statement::Rollback => {
+                self.tables = self
+                    .snapshot
+                    .take()
+                    .ok_or_else(|| ExecutionError("no active transaction".into()))?;
+                Ok(Output::RolledBack)
+            }
             Statement::CreateTable { name, columns } => {
                 if self.tables.contains_key(name) {
                     return Err(ExecutionError(format!("table {name:?} already exists")));

@@ -40,8 +40,10 @@ checksums, so arbitrary changes to data-page contents cannot be detected.
 - File errors use `std::io::Error`; invalid database files report `InvalidData`,
   and invalid page IDs report `InvalidInput`.
 
-Use only one pager/writer for a file at a time. File locking, transactions,
-atomic allocation, and crash recovery are future work. Allocation writes the
+Use only one pager/writer for a file at a time. Direct pager operations have no
+locking, transactions, atomic allocation, or crash recovery. The
+[Database transaction layer](transactions.md) stages SQL changes and adds WAL
+recovery across managed files. Direct allocation writes the
 new page before its header count; a failed or interrupted write can leave an
 invalid file. After a write or sync error, discard the pager and investigate
 the file before proceeding. A successful sync is not transaction atomicity.

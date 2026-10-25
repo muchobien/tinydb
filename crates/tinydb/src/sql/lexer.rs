@@ -165,7 +165,12 @@ pub fn tokenize(source: &str) -> Result<Vec<Token>, SqlError> {
                 let uppercase = word.to_ascii_uppercase();
                 if matches!(
                     uppercase.as_str(),
-                    "AS" | "INNER"
+                    "BEGIN"
+                        | "COMMIT"
+                        | "ROLLBACK"
+                        | "TRANSACTION"
+                        | "AS"
+                        | "INNER"
                         | "JOIN"
                         | "ON"
                         | "ORDER"

@@ -28,7 +28,8 @@ buffer pool yet; page contents are interpreted by the record-storage layer.
 Page 0 contains the versioned header. Data pages start at ID 1 and are appended
 as zero-filled blocks. Opening validates the header and exact file length before
 allowing access. Call `sync()` to persist writes; file locking and atomic crash
-recovery remain future work.
+recovery are provided for SQL operations by the Database layer below; direct
+Pager users retain single-owner, non-transactional access.
 
 See [Storage format](storage-format.md) for the byte layout, invariants, API, and
 failure behavior, and [pager tests](../crates/tinydb/tests/pager.rs) for examples.
@@ -65,7 +66,7 @@ equal leaf depths, forward links, and unreachable pages. Subsequent point
 operations follow a root-to-leaf path. Index values refer to a separate heap;
 direct callers coordinate heap and index mutations explicitly. The Database
 API below adds a catalog and maintains those mappings; atomic heap/index
-transactions remain future work.
+transactions are provided by the transaction layer below.
 
 See [B+ tree indexes](b-plus-tree.md) for byte layouts and failure semantics,
 the [implementation](../crates/tinydb/src/index/btree.rs), and
@@ -98,7 +99,8 @@ files, and integer primary-key B+ trees. Opening validates schemas, row
 constraints, and exact heap/index agreement. Each statement reads current rows
 from storage into the shared session evaluator. Mutations validate candidates
 and encoded sizes before updating heaps and index mappings, then synchronize
-the files. Storage errors poison the handle; crash recovery remains future work.
+the files. This catalog/row state now runs beneath the transaction coordinator
+described below; storage errors poison the handle.
 
 A small rule-based planner selects sequential heap scans or integer primary-key
 index bounds for single-table SELECT statements. `Database::plan` exposes those
@@ -107,7 +109,27 @@ projection, GROUP BY, COUNT/SUM/MIN/MAX, and ORDER BY produce materialized rows.
 The terminal accepts an optional database directory for persistent sessions.
 
 See [Relational execution](relational-execution.md) for catalog encoding,
-execution order, APIs, and failure semantics. Cost-based optimization, a shared
-single-file layout, and transactions remain future work.
+execution order, APIs, and failure semantics. Cost-based optimization and a shared
+single-file layout remain future work.
+
+## Implemented: transactions and durability
+
+The public `Database` coordinates a committed catalog/row state and an optional
+staged state. BEGIN copies managed files into `.transaction`; queries and
+mutations use that view until COMMIT or ROLLBACK. Individual mutations use the
+same mechanism automatically outside explicit transactions. Session uses an
+in-memory snapshot for equivalent control commands.
+
+`transaction::Journal` owns an exclusive OS lock and a checksummed WAL of full
+file after-images. It synchronizes the body before the commit record, and the
+commit record before any live file replacement. Checkpointing synchronizes each
+replacement and the database directory before clearing the journal. Opening
+runs idempotent recovery before catalog/row validation and discards incomplete
+transaction staging. Abrupt exits release the lock through the OS.
+
+See [Transactions](transactions.md) for the binary format, commit point, failure
+semantics, and current whole-file cost. The
+[integration tests](../crates/tinydb/tests/transactions.rs) exercise partial
+commits/checkpoints, corruption, locking, process exits, and a killed writer.
 
 [Documentation index](README.md)
