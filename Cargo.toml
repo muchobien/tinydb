@@ -1,3 +1,3 @@
 [workspace]
-members = ["crates/tinydb"]
+members = ["crates/tinydb", "crates/tinydb-cli"]
 resolver = "3"

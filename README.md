@@ -45,7 +45,9 @@ allocating, reading, writing, syncing, and reopening 4096-byte pages. Milestone 
 adds typed record encoding, slotted pages, and a record store with stable IDs,
 updates, deletion, and space reclamation. Milestone 3 adds persistent B+ tree
 indexes with unique integer keys, point lookups, range scans, and deletion with
-rebalancing. SQL and the `Database` API shown above are future milestones.
+rebalancing. Milestone 4 adds a SQL lexer, parser, AST, and terminal execution
+over in-memory tables. Persistent SQL tables and the `Database` API shown
+above are future milestones.
 
 With stable Rust installed, run:
 
@@ -87,3 +89,22 @@ The example builds an index, deletes a key and its record, then reopens both
 files for point lookups and an ordered range scan. Read the
 [B+ tree design](docs/b-plus-tree.md) for node layouts, splitting, deletion,
 validation, and the current separate-file constraint.
+
+To try SQL in an **in-memory session**:
+
+```sh
+cargo run -p tinydb-cli
+```
+
+```sql
+CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, age INTEGER);
+INSERT INTO users VALUES (1, 'Alice', 25), (2, 'Bob', NULL);
+SELECT name FROM users WHERE age >= 18 OR age IS NULL;
+UPDATE users SET age = 30 WHERE id = 1;
+DELETE FROM users WHERE id = 2;
+```
+
+End statements with `;` and exit with Ctrl-D. SQL can also be piped to stdin.
+Tables disappear when the session exits. Read the
+[SQL language guide](docs/sql-language.md) for grammar, diagnostics, constraints,
+NULL behavior, and the library API.

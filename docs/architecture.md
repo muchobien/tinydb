@@ -70,4 +70,25 @@ See [B+ tree indexes](b-plus-tree.md) for byte layouts and failure semantics,
 the [implementation](../crates/tinydb/src/index/btree.rs), and
 [integration tests](../crates/tinydb/tests/btree.rs).
 
+## Implemented: SQL language and terminal
+
+`sql::tokenize` converts source text into tokens with byte ranges. A handwritten
+recursive-descent `sql::parse` builds owned statements for CREATE TABLE, INSERT,
+SELECT, UPDATE, and DELETE. Predicates support comparisons, parentheses,
+NOT/AND/OR precedence, and NULL checks. Syntax errors retain their source span,
+line, and character column. Recursive nesting is bounded; flat boolean lists
+remain flat in the AST.
+
+`sql::Session` executes the subset over typed in-memory tables. It validates
+column references, types, primary keys, and nullability. Candidate rows are
+checked before mutations replace table state. WHERE uses three-valued logic;
+projections return column names and values. The `tinydb-cli` workspace member
+uses this API for multiline interactive input and piped scripts.
+
+The session has no persistent catalog and does not connect SQL to the existing
+heap or index files. Those storage-backed paths, joins, ordering, and aggregation
+remain Milestone 5. See the [SQL language guide](sql-language.md),
+[SQL integration tests](../crates/tinydb/tests/sql.rs), and
+[terminal integration tests](../crates/tinydb-cli/tests/terminal.rs).
+
 [Documentation index](README.md)

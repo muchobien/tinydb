@@ -21,9 +21,11 @@ tinydb/
 │   │       │   ├── mod.rs
 │   │       │   └── btree.rs
 │   │       ├── sql/
+│   │       │   ├── mod.rs
 │   │       │   ├── lexer.rs
 │   │       │   ├── parser.rs
-│   │       │   └── ast.rs
+│   │       │   ├── ast.rs
+│   │       │   └── session.rs
 │   │       ├── execution/
 │   │       │   ├── planner.rs
 │   │       │   └── executor.rs
@@ -46,7 +48,9 @@ milestone needs them. Milestone 1 adds the workspace and `crates/tinydb`, with
 runnable examples in `crates/tinydb/examples`. Milestone 2 adds `record.rs`,
 `slotted_page.rs`, and `record_store.rs`, with codec, page, and record-store
 integration tests. Milestone 3 adds `index/{mod,btree}.rs`, B+ tree integration
-tests, and a heap/index example. The CLI and remaining modules are planned.
+tests, and a heap/index example. Milestone 4 adds the SQL lexer, parser, AST,
+and in-memory session, plus the `tinydb-cli` crate and terminal integration
+tests. The execution, transaction, and buffer modules remain planned.
 
 The learning documentation is organized as:
 
@@ -57,6 +61,7 @@ docs/
 ├── storage-format.md
 ├── record-storage.md
 ├── b-plus-tree.md
+├── sql-language.md
 ├── design-decisions.md
 ├── learning-process.md
 ├── references.md

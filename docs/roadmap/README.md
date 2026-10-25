@@ -18,6 +18,6 @@ Work through the milestones in order, using the [learning process](../learning-p
 
 > Testing is continuous throughout the project; Milestone 9 consolidates the test harness and benchmarks.
 
-Milestones 1–3 are implemented. Continue with [Milestone 4: SQL language](04-sql-language.md).
+Milestones 1–4 are implemented. Continue with [Milestone 5: Relational execution](05-relational-execution.md).
 
 [Documentation index](../README.md)

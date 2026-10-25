@@ -20,6 +20,10 @@
 | Compaction | Repack payloads on every page mutation | Reclaim holes with simple, bounded page-sized work |
 | Record growth | Single-page records; reject updates that cannot fit | Preserve IDs without adding overflow chains or forwarding yet |
 | SQL parser | Handwritten | Understand lexing and parsing |
+| SQL values | Existing INTEGER, TEXT, and NULL values with strict types | Keep the first language aligned with record encoding |
+| SQL predicates | Comparisons, NULL checks, and three-valued boolean logic | Define filtering before storage-backed execution |
+| Initial SQL execution | In-memory session with statement validation before mutation | Make terminal SQL usable before the persistent catalog milestone |
+| SQL diagnostics | UTF-8 byte spans with line and character columns | Locate lexical and syntax errors in multiline input |
 | Durability | WAL | Learn atomicity and crash recovery |
 | Concurrency | Single writer | Keep the first implementation manageable |
 | Dependencies | Minimal | Avoid hiding important internals |
